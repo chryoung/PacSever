@@ -37,7 +37,7 @@ public partial class ConfigForm : Form
         OnConfigSaved += async (pacUrl, proxyServer) => await SaveConfigFileAsync(pacUrl, proxyServer);
 
         var lblPacUrl = new Label { Text = "PAC URL:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
-        var lblProxy = new Label { Text = "Proxy Server (host:port):", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
+        var lblProxy = new Label { Text = "HTTP Proxy Server:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
         var btnSave = new Button { Text = "Save", AutoSize = true };
 
         layout.Controls.Add(lblPacUrl, 0, 0);
@@ -59,7 +59,7 @@ public partial class ConfigForm : Form
             Close();
         };
 
-        MinimumSize = new System.Drawing.Size(400, 180);
+        MinimumSize = new System.Drawing.Size(800, 100);
     }
 
     protected override void OnLoad(EventArgs e)

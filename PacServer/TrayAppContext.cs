@@ -27,15 +27,18 @@ public partial class TrayAppContext : ApplicationContext
     {
         trayIcon = new NotifyIcon()
         {
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = Resource.TrayIcon,
             ContextMenuStrip = new ContextMenuStrip(),
             Visible = true,
             Text = "PAC Proxy Tray"
         };
 
+        bool isPacEnabled = !string.IsNullOrEmpty(GetSystemPacProxy());
+
         enableProxyMenuItem = new ToolStripMenuItem("Enable Proxy", null, OnEnableProxyClicked) { CheckOnClick = true };
         trayIcon.ContextMenuStrip.Items.Add(enableProxyMenuItem);
         trayIcon.ContextMenuStrip.Items.Add("Config...", null, OnConfigClicked);
+        enableProxyMenuItem.Checked = isPacEnabled;
 
         updatePacMenuItem = new ToolStripMenuItem("Update PAC", null, OnUpdatePacClicked);
         trayIcon.ContextMenuStrip.Items.Add(updatePacMenuItem);
@@ -168,6 +171,13 @@ public partial class TrayAppContext : ApplicationContext
         {
             key?.SetValue("AutoConfigURL", pacUrl);
         }
+    }
+
+    private string GetSystemPacProxy()
+    {
+        // Windows only: get system PAC URL
+        var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings", false);
+        return key?.GetValue("AutoConfigURL") as string ?? string.Empty;
     }
 
     protected override void ExitThreadCore()
