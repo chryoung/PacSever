@@ -21,6 +21,8 @@ public partial class TrayAppContext : ApplicationContext
 
     // Add a constant for the PAC file path
     private const string LocalPacFilePath = "pacfile.pac";
+    private const string InternetSettingsRegistryKey = @"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
+    private const string PacUrlRegistryValueName = "AutoConfigURL";
 
     // Modify constructor to load PAC from disk if available
     public TrayAppContext()
@@ -55,7 +57,7 @@ public partial class TrayAppContext : ApplicationContext
             return;
         }
 
-        pacContent = System.IO.File.ReadAllText(LocalPacFilePath);
+        pacContent = File.ReadAllText(LocalPacFilePath);
         pacServer.SetPacContent(pacContent);
     }
 
@@ -83,7 +85,7 @@ public partial class TrayAppContext : ApplicationContext
         if (configForm == null || configForm.IsDisposed)
         {
             configForm = new ConfigForm();
-            configForm.OnConfigSaved += async (url, proxy) =>
+            configForm.OnConfigSaved += async (url, proxy, port) =>
             {
                 pacUrl = url;
                 proxyServer = proxy;
@@ -98,6 +100,12 @@ public partial class TrayAppContext : ApplicationContext
                         // Save PAC to disk
                         File.WriteAllText(LocalPacFilePath, pacContent);
                     }
+                }
+
+                if (port != pacServer.Port)
+                {
+                    pacServer.Stop();
+                    pacServer.Start(port);
                 }
             };
         }
@@ -149,7 +157,7 @@ public partial class TrayAppContext : ApplicationContext
     {
         if (enableProxyMenuItem.Checked)
         {
-            pacServer.Start();
+            pacServer.Start(ConfigFile.Instance.Value.PacServerListeningPort);
             SetSystemPacProxy(pacServer.ServerUrl);
         }
         else
@@ -162,22 +170,22 @@ public partial class TrayAppContext : ApplicationContext
     private void SetSystemPacProxy(string pacUrl)
     {
         // Windows only: set system PAC URL
-        var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings", true);
+        var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(InternetSettingsRegistryKey, true);
         if (string.IsNullOrEmpty(pacUrl))
         {
-            key?.DeleteValue("AutoConfigURL", false);
+            key?.DeleteValue(PacUrlRegistryValueName, false);
         }
         else
         {
-            key?.SetValue("AutoConfigURL", pacUrl);
+            key?.SetValue(PacUrlRegistryValueName, pacUrl);
         }
     }
 
     private string GetSystemPacProxy()
     {
         // Windows only: get system PAC URL
-        var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings", false);
-        return key?.GetValue("AutoConfigURL") as string ?? string.Empty;
+        var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(InternetSettingsRegistryKey, false);
+        return key?.GetValue(PacUrlRegistryValueName) as string ?? string.Empty;
     }
 
     protected override void ExitThreadCore()

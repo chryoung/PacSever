@@ -8,18 +8,25 @@ public class PacHttpServer
 {
     private HttpListener? listener;
     private string pacContent = "";
-    private int port = 12345;
     private CancellationTokenSource? cts;
+    public int Port { get; set; }
+    private string ListenAddress() => $"http://localhost:{Port}";
 
-    public string ServerUrl => $"http://localhost:{port}/proxy.pac";
+    public string ServerUrl => $"{ ListenAddress() }/proxy.pac";
 
     public void SetPacContent(string content) => pacContent = content;
 
-    public void Start()
+    public void Start(int port)
     {
-        if (listener != null && listener.IsListening) return;
+        Port = port;
+
+        if (listener != null && listener.IsListening)
+        {
+            return;
+        }
+
         listener = new HttpListener();
-        listener.Prefixes.Add($"http://localhost:{port}/");
+        listener.Prefixes.Add($"{ ListenAddress() }/ ");
         listener.Start();
         cts = new CancellationTokenSource();
         Task.Run(() => ListenLoop(cts.Token));

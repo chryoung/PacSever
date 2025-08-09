@@ -7,16 +7,11 @@ namespace PacServer;
 
 public partial class ConfigForm : Form
 {
-    public event Func<string, string, Task>? OnConfigSaved;
-    private readonly string configFilePath = "config.json";
-    private readonly ConfigFile defaultConfigFile = new()
-    {
-        PacUrl = string.Empty,
-        ProxyServer = @"http://127.0.0.1:8080",
-    };
+    public event Func<string, string, int, Task>? OnConfigSaved;
 
     TextBox txtPacUrl = new TextBox { Dock = DockStyle.Fill };
     TextBox txtProxy = new TextBox { Dock = DockStyle.Fill };
+    TextBox txtPort = new TextBox { Dock = DockStyle.Fill };
 
     public ConfigForm()
     {
@@ -34,17 +29,31 @@ public partial class ConfigForm : Form
             Padding = new Padding(10)
         };
 
-        OnConfigSaved += async (pacUrl, proxyServer) => await SaveConfigFileAsync(pacUrl, proxyServer);
+        OnConfigSaved += async (pacUrl, proxyServer, port) =>
+        {
+            ConfigFile.Instance.Value.PacUrl = pacUrl;
+            ConfigFile.Instance.Value.ProxyServer = proxyServer;
+            ConfigFile.Instance.Value.PacServerListeningPort = port;
+
+            ConfigFile.Instance.Value.Save();
+            await Task.CompletedTask;
+        };
 
         var lblPacUrl = new Label { Text = "PAC URL:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
         var lblProxy = new Label { Text = "HTTP Proxy Server:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
+        var lblPort = new Label { Text = "PAC Server Listening Port:", AutoSize = true, TextAlign = ContentAlignment.MiddleLeft };
         var btnSave = new Button { Text = "Save", AutoSize = true };
+        txtPacUrl.Text = ConfigFile.Instance.Value.PacUrl;
+        txtProxy.Text = ConfigFile.Instance.Value.ProxyServer;
+        txtPort.Text = ConfigFile.Instance.Value.PacServerListeningPort.ToString();
 
         layout.Controls.Add(lblPacUrl, 0, 0);
         layout.Controls.Add(txtPacUrl, 1, 0);
         layout.Controls.Add(lblProxy, 0, 1);
         layout.Controls.Add(txtProxy, 1, 1);
-        layout.Controls.Add(btnSave, 0, 2);
+        layout.Controls.Add(lblPort, 0, 2);
+        layout.Controls.Add(txtPort, 1, 2);
+        layout.Controls.Add(btnSave, 0, 3);
         layout.SetColumnSpan(btnSave, 2);
 
         Controls.Add(layout);
@@ -53,52 +62,25 @@ public partial class ConfigForm : Form
         {
             if (OnConfigSaved != null)
             {
-                await OnConfigSaved(txtPacUrl.Text, txtProxy.Text);
+                if (int.TryParse(txtPort.Text, out int port))
+                {
+                    await OnConfigSaved(txtPacUrl.Text, txtProxy.Text, port);
+                    if (port <= 0 || port > 65535)
+                    {
+                        MessageBox.Show("Port number must be between 1 and 65535.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Invalid port number. Please enter a valid integer.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
             }
 
             Close();
         };
 
         MinimumSize = new System.Drawing.Size(800, 100);
-    }
-
-    protected override void OnLoad(EventArgs e)
-    {
-        base.OnLoad(e);
-        ConfigForm_Load(this, e);
-    }
-
-    private async void ConfigForm_Load(object sender, EventArgs e)
-    {
-        ConfigFile config = await ReadConfigFileAsync();
-        txtPacUrl.Text = config.PacUrl;
-        txtProxy.Text = config.ProxyServer;
-    }
-
-    private async Task<ConfigFile> ReadConfigFileAsync()
-    {
-        try
-        {
-            string json = await File.ReadAllTextAsync(configFilePath);
-            var configFile = JsonSerializer.Deserialize<ConfigFile>(json);
-
-            return configFile ?? defaultConfigFile;
-        }
-        catch
-        {
-            return defaultConfigFile;
-        }
-    }
-
-    private async Task SaveConfigFileAsync(string pacUrl, string proxyServer)
-    {
-        ConfigFile config = new ConfigFile
-        {
-            PacUrl = pacUrl,
-            ProxyServer = proxyServer
-        };
-
-        string json = JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(configFilePath, json);
     }
 }
