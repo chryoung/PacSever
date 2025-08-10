@@ -26,7 +26,7 @@ public class PacHttpServer
         }
 
         listener = new HttpListener();
-        listener.Prefixes.Add($"{ ListenAddress() }/ ");
+        listener.Prefixes.Add($"{ ListenAddress() }/");
         listener.Start();
         cts = new CancellationTokenSource();
         Task.Run(() => ListenLoop(cts.Token));
